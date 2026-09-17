@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notas em atraso - SIG Gestor</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --border: #e2e5ea;
+    --text: #1c2024;
+    --muted: #6b7280;
+    --accent: #b45309;
+    --accent-soft: #fef3c7;
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --critico: #dc2626;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --card: #1c1f24;
+      --border: #2c313a;
+      --text: #e8eaed;
+      --muted: #9aa1ac;
+      --accent: #fbbf24;
+      --accent-soft: #3a2d10;
+      --ok: #4ade80;
+      --ok-soft: #14301f;
+      --critico: #f87171;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 20px 64px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .resumo { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; min-width: 150px; box-shadow: var(--shadow);
+  }
+  .kpi .n { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+  .kpi .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+  input[type=search], select {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; font: inherit;
+  }
+  input[type=search] { flex: 1; min-width: 220px; }
+  button {
+    background: var(--accent); color: var(--card); border: 0; border-radius: 8px;
+    padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .6; cursor: progress; }
+  button.secundario { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button.secundario:hover:not(:disabled) { filter: none; border-color: var(--accent); }
+  button.btn-compartilhar { align-self: flex-start; padding: 5px 12px; font-size: 12.5px; }
+  dialog {
+    border: 1px solid var(--border); border-radius: 12px; background: var(--card);
+    color: var(--text); padding: 0; width: min(720px, 94vw); box-shadow: 0 12px 40px rgba(0,0,0,.22);
+  }
+  dialog::backdrop { background: rgba(15, 18, 22, .55); }
+  .dlg-topo {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .dlg-topo h2 { font-size: 16px; margin: 0; }
+  .dlg-topo .fechar { margin-left: auto; background: transparent; color: var(--muted); padding: 4px 10px; font-size: 18px; }
+  .dlg-corpo { padding: 8px 20px 20px; max-height: 65vh; overflow: auto; }
+  .dlg-corpo textarea#compartilharTexto {
+    width: 100%; min-height: 140px; font: 13px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace;
+    background: transparent; color: var(--text); border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  .dlg-resumo { color: var(--muted); font-size: 12.5px; padding: 10px 0 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px;
+  }
+  .card h2 { font-size: 15px; margin: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .uf { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .badge {
+    margin-left: auto; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .badge.zero { background: var(--ok-soft); color: var(--ok); }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.parcela { border-left: 3px solid var(--accent); padding: 2px 0 2px 10px; }
+  li.parcela .linha1 { font-weight: 600; }
+  li.parcela .linha2 { color: var(--muted); font-size: 12.5px; }
+  li.parcela .linha2.venc strong { color: var(--accent); }
+  li.parcela.muito-atrasada { border-left-color: var(--critico); }
+  li.parcela.muito-atrasada .linha2.venc strong { color: var(--critico); }
+  .pagas li.parcela { border-left-color: var(--ok); opacity: .72; }
+  .pagas li.parcela .linha1 { font-weight: 500; text-decoration: line-through; }
+  details summary {
+    cursor: pointer; color: var(--ok); font-size: 12.5px; font-weight: 600;
+    list-style: none; user-select: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "\25B8 "; }
+  details[open] summary::before { content: "\25BE "; }
+  details > ul { margin-top: 8px; }
+  a { color: inherit; }
+  .obs { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+  .obs label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .obs .saved { color: var(--ok); opacity: 0; transition: opacity .2s; text-transform: none; letter-spacing: 0; }
+  .obs .saved.show { opacity: 1; }
+  textarea {
+    width: 100%; min-height: 62px; resize: vertical; font: inherit;
+    background: transparent; color: var(--text);
+    border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-style: solid; }
+  .vazio { color: var(--muted); padding: 40px 0; text-align: center; }
+  .erro {
+    background: var(--accent-soft); color: var(--accent); border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 18px; font-size: 13px;
+  }
+  footer { color: var(--muted); font-size: 12px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Notas fiscais em atraso &ndash; SIG Gestor</h1>
+  <div class="sub" id="sub">Carregando...</div>
+
+  <div class="erro" id="erro" hidden></div>
+
+  <div class="resumo" id="resumo"></div>
+
+  <div class="toolbar">
+    <button id="btnRecarregar" type="button" class="secundario">Recarregar dados</button>
+    <input type="search" id="busca" placeholder="Filtrar por municipio, contrato ou nota fiscal...">
+    <select id="ordem">
+      <option value="vencimento">Ordenar: mais atrasada primeiro</option>
+      <option value="municipio">Ordenar: municipio (A-Z)</option>
+      <option value="valor">Ordenar: maior valor em aberto</option>
+      <option value="qtd">Ordenar: mais notas em aberto</option>
+    </select>
+    <label style="display:flex;gap:6px;align-items:center;color:var(--muted)">
+      <input type="checkbox" id="soAtraso" checked> so quem tem nota em aberto
+    </label>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="vazio" id="vazio" hidden>Nenhum municipio encontrado com esse filtro.</div>
+
+  <footer id="rodape">
+    Copia publica so para consulta - a atualizacao (raspar o SIG Gestor) roda no computador de
+    quem administra o painel. As observacoes escritas aqui sao salvas para todo mundo ver.
+  </footer>
+</div>
+
+<dialog id="dlgCompartilhar">
+  <div class="dlg-topo">
+    <h2 id="compartilharTitulo">Compartilhar</h2>
+    <button class="fechar" id="fecharCompartilhar" title="Fechar">&times;</button>
+  </div>
+  <div class="dlg-corpo">
+    <textarea id="compartilharTexto" readonly></textarea>
+    <div class="dlg-resumo" id="compartilharAviso"></div>
+  </div>
+</dialog>
+
+<!-- Preencher com o Project URL e a chave "anon"/"public" do seu projeto Supabase
+     (Project Settings > API). A anon key E PARA SER publica - o acesso de verdade
+     e controlado pelas regras de RLS no banco (ver supabase_schema.sql). -->
+<script>
+  const SUPABASE_URL = "https://sbkpbchsmrdoybzawwyt.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNia3BiY2hzbXJkb3liemF3d3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODUzMzQsImV4cCI6MjEwNDk2MTMzNH0.wUjZA0kFtOqq728rI3pLMYwEcU6MoPVv9MBNTqvl28k";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const brl = v => v.toLocaleString("pt-BR", {style: "currency", currency: "BRL"});
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dataBR = iso => iso ? iso.split("-").reverse().join("/") : "sem data";
+const dataDaBaixa = p => (p.data_baixa || "").slice(0, 10);
+
+function diasAtraso(iso) {
+  if (!iso) return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const venc = new Date(iso + "T00:00:00");
+  if (isNaN(venc)) return null;
+  return Math.round((hoje - venc) / 86400000);
+}
+
+function linhaVencimento(p) {
+  const dias = diasAtraso(p.data_limite_iso);
+  if (dias === null) return {texto: "", muitoAtrasada: false};
+  const dataFmt = esc(dataBR(p.data_limite_iso));
+  if (dias > 0) return {texto: `Venceu em ${dataFmt} · <strong>${dias} dia(s) em atraso</strong>`, muitoAtrasada: dias > 30};
+  if (dias === 0) return {texto: `Vence hoje (${dataFmt})`, muitoAtrasada: false};
+  return {texto: `Vence em ${dataFmt} (daqui a ${-dias} dia(s))`, muitoAtrasada: false};
+}
+
+function itemHTML(p, paga) {
+  if (paga) {
+    const dataLinha = "Paga em " + esc(dataBR(dataDaBaixa(p))) + " · " + esc(p.status_final || p.status || "");
+    return `<li class="parcela">
+      <div class="linha1">NF ${esc(p.nota_fiscal || "-")} · ${esc(p.valor || "-")}</div>
+      <div class="linha2">Contrato ${esc(p.contrato || "-")} · parcela ${esc(p.parcela || "-")}</div>
+      <div class="linha2">${dataLinha}</div>
+    </li>`;
+  }
+  const venc = linhaVencimento(p);
+  return `<li class="parcela${venc.muitoAtrasada ? " muito-atrasada" : ""}">
+    <div class="linha1">NF ${esc(p.nota_fiscal || "-")} · ${esc(p.valor || "-")}</div>
+    <div class="linha2">Contrato ${esc(p.contrato || "-")} · parcela ${esc(p.parcela || "-")}</div>
+    <div class="linha2">${esc(p.status || "")}</div>
+    ${venc.texto ? `<div class="linha2 venc">${venc.texto}</div>` : ""}
+  </li>`;
+}
+
+function cardHTML(g) {
+  const abertas = g.abertas.length
+    ? `<ul>${g.abertas.map(p => itemHTML(p, false)).join("")}</ul>`
+    : `<div class="linha2" style="color:var(--muted)">Nenhuma nota em aberto.</div>`;
+  const pagas = g.pagas.length
+    ? `<details class="pagas"><summary>${g.pagas.length} baixada(s) recentemente</summary>
+         <ul>${g.pagas.map(p => itemHTML(p, true)).join("")}</ul></details>`
+    : "";
+  const link = g.abertas[0]?.url || g.pagas[0]?.url || "";
+  const titulo = link
+    ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(g.municipio)}</a>`
+    : esc(g.municipio);
+
+  const btnCompartilhar = g.abertas.length
+    ? `<button type="button" class="secundario btn-compartilhar">Compartilhar</button>`
+    : "";
+
+  return `<div class="card" data-id="${esc(g.id)}">
+    <h2>${titulo} <span class="uf">${esc(g.uf)}</span>
+      <span class="badge ${g.abertas.length ? "" : "zero"}">${g.abertas.length ? g.abertas.length + " em aberto · " + brl(g.total_aberto) : "em dia"}</span>
+    </h2>
+    ${btnCompartilhar}
+    ${abertas}
+    ${pagas}
+    <div class="obs">
+      <label>Observacoes <span class="saved">salvo</span></label>
+      <textarea placeholder="Anotacoes sobre este municipio...">${esc(OBSERVACOES[g.id] || "")}</textarea>
+    </div>
+  </div>`;
+}
+
+// Uma linha por contrato, para nao misturar NFs de contratos diferentes do
+// mesmo municipio na mesma linha.
+function textoCompartilhar(g) {
+  const porContrato = new Map();
+  for (const p of g.abertas) {
+    const contrato = p.contrato || "-";
+    if (!porContrato.has(contrato)) porContrato.set(contrato, []);
+    porContrato.get(contrato).push(p.nota_fiscal || "-");
+  }
+  return [...porContrato.entries()]
+    .map(([contrato, nfs]) => `Notas fiscais em atraso: contrato ${contrato} - ${nfs.map(n => "NF " + n).join(" - ")}`)
+    .join("\n");
+}
+
+let DADOS = {grupos: []};
+let OBSERVACOES = {};
+
+function parseValor(texto) {
+  const limpo = String(texto || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(limpo);
+  return isNaN(n) ? 0 : n;
+}
+
+function agrupar(parcelas) {
+  const grupos = new Map();
+  const grupoDe = p => {
+    const chave = `${p.municipio || ""}|${p.uf || ""}`;
+    if (!grupos.has(chave)) {
+      grupos.set(chave, {id: chave, municipio: p.municipio || "(sem municipio)", uf: p.uf || "", abertas: [], pagas: [], total_aberto: 0});
+    }
+    return grupos.get(chave);
+  };
+  for (const p of parcelas) {
+    const g = grupoDe(p);
+    if (p.situacao === "aberta") {
+      g.abertas.push(p);
+      g.total_aberto += parseValor(p.valor);
+    } else {
+      g.pagas.push(p);
+    }
+  }
+  for (const g of grupos.values()) {
+    g.abertas.sort((a, b) => (a.data_limite_iso || "9999-99-99").localeCompare(b.data_limite_iso || "9999-99-99"));
+    g.pagas.sort((a, b) => dataDaBaixa(b).localeCompare(dataDaBaixa(a)));
+    const vencidas = g.abertas.map(p => p.data_limite_iso).filter(Boolean);
+    g.vencimento_mais_antigo = vencidas.length ? vencidas.sort()[0] : null;
+  }
+  return [...grupos.values()].sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR"));
+}
+
+async function carregarDados() {
+  document.getElementById("erro").hidden = true;
+  const [parcelasRes, obsRes, metaRes] = await Promise.all([
+    sb.from("parcelas").select("*"),
+    sb.from("observacoes").select("*"),
+    sb.from("metadados").select("*").eq("chave", "atualizado_em").maybeSingle(),
+  ]);
+
+  if (parcelasRes.error) {
+    document.getElementById("erro").hidden = false;
+    document.getElementById("erro").textContent =
+      "Nao consegui carregar os dados do Supabase: " + parcelasRes.error.message
+      + ". Confira se a tabela 'parcelas' existe e se as chaves no topo do arquivo estao certas.";
+    return;
+  }
+
+  OBSERVACOES = {};
+  for (const o of (obsRes.data || [])) OBSERVACOES[o.chave] = o.texto;
+
+  DADOS = {
+    atualizado_em: metaRes.data?.valor
+      ? new Date(metaRes.data.valor).toLocaleString("pt-BR", {dateStyle: "short", timeStyle: "short"})
+      : "nunca",
+    grupos: agrupar(parcelasRes.data || []),
+  };
+  render();
+}
+
+function render() {
+  const termo = document.getElementById("busca").value.trim().toLowerCase();
+  const ordem = document.getElementById("ordem").value;
+  const soAtraso = document.getElementById("soAtraso").checked;
+
+  document.getElementById("sub").textContent =
+    "Ultima atualizacao: " + DADOS.atualizado_em + " · copia publica, atualizada quando alguem clica “Atualizar agora” no painel local.";
+
+  let grupos = DADOS.grupos.slice();
+  if (soAtraso) grupos = grupos.filter(g => g.abertas.length > 0);
+  if (termo) {
+    grupos = grupos.filter(g => {
+      const alvo = [g.municipio, g.uf].concat(g.abertas.concat(g.pagas).map(p => `${p.contrato} ${p.nota_fiscal} ${p.parcela}`)).join(" ").toLowerCase();
+      return alvo.includes(termo);
+    });
+  }
+
+  const total_abertas = DADOS.grupos.reduce((s, g) => s + g.abertas.length, 0);
+  const total_valor = DADOS.grupos.reduce((s, g) => s + g.total_aberto, 0);
+  const municipios_com_atraso = DADOS.grupos.filter(g => g.abertas.length > 0).length;
+  document.getElementById("resumo").innerHTML = [
+    ["Municipios com atraso", municipios_com_atraso],
+    ["Notas em aberto", total_abertas],
+    ["Valor em aberto", brl(total_valor)],
+  ].map(([l, n]) => `<div class="kpi"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("");
+
+  const ordenadores = {
+    vencimento: (a, b) => (a.vencimento_mais_antigo || "9999-99-99").localeCompare(b.vencimento_mais_antigo || "9999-99-99"),
+    municipio: (a, b) => a.municipio.localeCompare(b.municipio, "pt-BR"),
+    valor: (a, b) => b.total_aberto - a.total_aberto,
+    qtd: (a, b) => b.abertas.length - a.abertas.length,
+  };
+  grupos.sort(ordenadores[ordem]);
+
+  document.getElementById("grid").innerHTML = grupos.map(cardHTML).join("");
+  document.getElementById("vazio").hidden = grupos.length > 0;
+
+  document.querySelectorAll(".card").forEach(card => {
+    const id = card.dataset.id;
+    const ta = card.querySelector("textarea");
+    const aviso = card.querySelector(".saved");
+    let timer;
+    ta.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => salvarObs(id, ta.value, aviso), 500);
+    });
+
+    const btnShare = card.querySelector(".btn-compartilhar");
+    if (btnShare) {
+      const g = grupos.find(x => x.id === id);
+      btnShare.addEventListener("click", () => abrirCompartilhar(g));
+    }
+  });
+}
+
+async function salvarObs(id, texto, aviso) {
+  const {error} = await sb.from("observacoes").upsert(
+    {chave: id, texto, atualizado_em: new Date().toISOString()},
+    {onConflict: "chave"}
+  );
+  OBSERVACOES[id] = texto;
+  aviso.textContent = error ? "nao foi possivel salvar" : "salvo";
+  aviso.classList.add("show");
+  if (!error) setTimeout(() => aviso.classList.remove("show"), 1200);
+}
+
+const dialogoCompartilhar = document.getElementById("dlgCompartilhar");
+
+function abrirCompartilhar(g) {
+  const texto = textoCompartilhar(g);
+  document.getElementById("compartilharTitulo").textContent = `Compartilhar – ${g.municipio}/${g.uf}`;
+  const area = document.getElementById("compartilharTexto");
+  const aviso = document.getElementById("compartilharAviso");
+  area.value = texto;
+  aviso.textContent = "";
+  dialogoCompartilhar.showModal();
+  area.focus();
+  area.select();
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(texto)
+      .then(() => { aviso.textContent = "Copiado para a area de transferencia."; })
+      .catch(() => { aviso.textContent = "Texto selecionado - copie com Ctrl+C."; });
+  } else {
+    aviso.textContent = "Texto selecionado - copie com Ctrl+C.";
+  }
+}
+
+document.getElementById("fecharCompartilhar").addEventListener("click", () => dialogoCompartilhar.close());
+dialogoCompartilhar.addEventListener("click", e => { if (e.target === dialogoCompartilhar) dialogoCompartilhar.close(); });
+
+document.getElementById("busca").addEventListener("input", render);
+document.getElementById("ordem").addEventListener("change", render);
+document.getElementById("soAtraso").addEventListener("change", render);
+document.getElementById("btnRecarregar").addEventListener("click", async () => {
+  const b = document.getElementById("btnRecarregar");
+  b.disabled = true; b.textContent = "Recarregando...";
+  await carregarDados();
+  b.disabled = false; b.textContent = "Recarregar dados";
+});
+
+carregarDados();
+</script>
+</body>
+</html>
